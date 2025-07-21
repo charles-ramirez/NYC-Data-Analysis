@@ -1,0 +1,74 @@
+---
+title: "Percentage of Residents by Race in NYC Districts"
+author: "Charles Ramirez"
+date: "2024-04-21"
+output: 
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(dplyr)
+library(xtable)
+library(tidyverse)
+library(gganimate)
+library(gapminder)
+library(av)
+library(sf)
+library(maps)
+
+```
+
+## Goal: Create a facet plot where each facet is a chloropleth indicating the percentage of residents in each district identifying as a member of each census-designated racial categories. Note that the nyc demos.csv file contains total counts by race, so you will need to normalize by overall population to get percentages. To get the data into suitable form for plotting, you will need to pivot the data into a longer format using the pivot longer function from the tidyr package. 
+
+```{r}
+
+
+library(tidyverse)
+library(dplyr)
+library(sf)
+library(maps)
+library(readr)
+
+nyc_map <- read_sf("/Users/charlesramirez/Downloads/nycc_24a/nycc.shp")
+nyc_demos <- read_csv("/Users/charlesramirez/Downloads/nyc_demos.csv")
+
+nyc_demos_long <- nyc_demos %>%
+  pivot_longer(cols = starts_with("Y"), names_to = "Year", values_to = "Population")
+
+nyc_racial_data <- nyc_demos_long %>%
+  filter(field %in% c("White Nonhispanic",
+                      "Black Nonhispanic",
+                      "Asian and Pacific Islander Nonhispanic",
+                      "Other Nonhispanic",
+                      "Two or More Races Nonhispanic",
+                      "Hispanic Origin"))
+
+total_nyc_population <- nyc_racial_data %>%
+  group_by(district) %>%
+  summarize(Total_Population = sum(Population))
+
+nyc_racial_data <- nyc_racial_data %>%
+  left_join(total_nyc_population, by = "district") %>%
+  mutate(Percentage = Population / Total_Population * 100)
+
+nyc_map$CounDist <- as.character(nyc_map$CounDist)
+
+nyc_racial_data$district <- as.character(nyc_racial_data$district)
+
+nyc_data_map3 <- left_join(nyc_map, nyc_racial_data, by = c("CounDist" = "district"))
+
+ggplot(nyc_data_map3, aes(fill = Percentage, geometry = geometry)) +
+  geom_sf() +
+  scale_fill_viridis_c(option = "magma", direction = -1, name = "Percentage") +
+  facet_wrap(~ field) +
+  labs(title = "Percentage of Residents by Race in NYC Districts",
+       subtitle = "Data: NYC Demographics Data") +
+  theme_minimal()
+  
+
+
+
+```
